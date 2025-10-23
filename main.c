@@ -1,42 +1,48 @@
 #include <stdint.h>
 
-/* === CONFIGURE THIS FOR YOUR BOARD ===
-   Default below assumes NUCLEO-C071RB user LED on PC9.
-   If your board uses PA5 (common on many Nucleo-64), change accordingly.
-   ODR offset is 0x14 for STM32 GPIO; GPIO block base commonly in 0x4800_0000 range.
+/* STM32C0 / G0 style addresses (common mapping):
+   RCC base  ~ 0x4002_1000 ; IOPENR offset 0x34 (IO port enable)
+   GPIO base ~ 0x5000_0000 ; port stride 0x400 ; ODR offset 0x14
+   These values match STM32C0 examples and RM0490 usage.
 */
 
-#define GPIO_BASE_PLIN      0x48000000U  /* base for GPIOA; adjust if needed */
-#define GPIO_PORT_OFFSET    0x400U       /* port stride: A +0x000, B +0x400, C +0x800 ... */
-#define GPIO_ODR_OFFSET     0x14U
+#define RCC_BASE        0x40021000UL
+#define RCC_IOPENR      (*(volatile uint32_t *)(RCC_BASE + 0x34UL))
 
-/* Choose the port index: 0=A, 1=B, 2=C, ... */
-#define LED_PORT_INDEX      2U   /* 2 => GPIOC */
-#define LED_PIN             9U   /* pin number (0..15) */
+#define GPIO_BASE       0x50000000UL
+#define GPIO_PORT_STRIDE 0x400UL
+#define GPIO_ODR_OFFSET  0x14UL
 
-/* compute ODR address for chosen port */
-#define GPIOx_BASE(port_index) (GPIO_BASE_PLIN + ((port_index) * GPIO_PORT_OFFSET))
-#define GPIOx_ODR_ADDR(port_index) (GPIOx_BASE(port_index) + GPIO_ODR_OFFSET)
+/* Configure to use PA5 (port index 0, pin 5) */
+#define LED_PORT_INDEX 0U  /* 0 => GPIOA */
+#define LED_PIN        5U
 
-volatile uint32_t * const LED_ODR = (volatile uint32_t *)GPIOx_ODR_ADDR(LED_PORT_INDEX);
+#define GPIOx_ODR(port_index) (*(volatile uint32_t *)(GPIO_BASE + (port_index)*GPIO_PORT_STRIDE + GPIO_ODR_OFFSET))
 
 static void delay(volatile uint32_t n) {
-    while (n--) {
-        __asm__ volatile("nop");
-    }
+    while (n--) { __asm__ volatile("nop"); }
 }
 
 int main(void) {
-    /* NOTE: Many STM32 MCUs require enabling the GPIO port clock in RCC before toggling.
-       If LED doesn't react, you must enable the corresponding RCC AHBENR bit for the port.
-       For example (pseudocode):
-         RCC->AHBENR |= (1 << (LED_PORT_INDEX + X));
-       The exact RCC register & bit depend on MCU family; check reference manual.
+    /* Enable GPIOA clock: set bit 0 in RCC IOPENR */
+    RCC_IOPENR |= (1U << LED_PORT_INDEX);
+
+    /* Set PA5 as output:
+       For minimal code we directly set the MODER bits:
+       MODER offset = 0x00, each pin has 2 bits: 00=input, 01=output, 10=alt, 11=analog.
+       We'll set MODE5 = 01.
+       For simplicity we use the address and manipulate register bits.
     */
+    volatile uint32_t *gpio_moder = (volatile uint32_t *)(GPIO_BASE + (LED_PORT_INDEX * GPIO_PORT_STRIDE) + 0x00UL);
+    /* clear bit pair then set to 01 */
+    *gpio_moder &= ~(0x3UL << (LED_PIN * 2));
+    *gpio_moder |=  (0x1UL << (LED_PIN * 2));
+
+    volatile uint32_t *odr = &GPIOx_ODR(LED_PORT_INDEX);
 
     while (1) {
-        /* toggle pin by XORing the ODR bit (this is simple but non-atomic) */
-        *LED_ODR ^= (1U << LED_PIN);
+        /* toggle pin */
+        *odr ^= (1U << LED_PIN);
         delay(300000);
     }
 

@@ -20,12 +20,12 @@ uint32_t *vector_table[] = {
     (uint32_t *)Default_Handler, /* NMI */
     (uint32_t *)Default_Handler, /* HardFault */
     (uint32_t *)0, /* reserved */
-    (uint32_t *)0, /* reserved */
-    (uint32_t *)0, /* reserved */
-    (uint32_t *)0, /* reserved */
-    (uint32_t *)0, /* reserved */
-    (uint32_t *)0, /* reserved */
-    (uint32_t *)0, /* reserved */
+    (uint32_t *)0,
+    (uint32_t *)0,
+    (uint32_t *)0,
+    (uint32_t *)0,
+    (uint32_t *)0,
+    (uint32_t *)0,
     (uint32_t *)Default_Handler, /* SVCall */
     (uint32_t *)Default_Handler, /* DebugMonitor */
     (uint32_t *)0, /* reserved */
@@ -52,7 +52,6 @@ void Reset_Handler(void) {
     /* call main */
     main();
 
-    /* If main returns, loop forever */
     while (1) { }
 }
 

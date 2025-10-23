@@ -1,0 +1,102 @@
+
+Discarded input sections
+
+ .text          0x00000000        0x0 main.o
+ .data          0x00000000        0x0 main.o
+ .bss           0x00000000        0x0 main.o
+ .text          0x00000000        0x0 startup.o
+ .data          0x00000000        0x0 startup.o
+ .bss           0x00000000        0x0 startup.o
+ .text          0x00000000        0x0 memutils.o
+ .data          0x00000000        0x0 memutils.o
+ .bss           0x00000000        0x0 memutils.o
+ .text.memcpy   0x00000000       0x12 memutils.o
+ .text.memset   0x00000000       0x10 memutils.o
+ .comment       0x00000000       0x47 memutils.o
+ .ARM.attributes
+                0x00000000       0x2c memutils.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+FLASH            0x08000000         0x00020000         xr
+RAM              0x20000000         0x00006000         xrw
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+LOAD main.o
+LOAD startup.o
+LOAD memutils.o
+                0x20006000                        _estack = (ORIGIN (RAM) + LENGTH (RAM))
+
+.isr_vector     0x08000000       0x40
+ *(.isr_vector)
+ .isr_vector    0x08000000       0x40 startup.o
+                0x08000000                vector_table
+
+.text           0x08000040       0x88
+ *(.text*)
+ .text.startup.main
+                0x08000040       0x48 main.o
+                0x08000040                main
+ .text.Default_Handler
+                0x08000088        0x2 startup.o
+                0x08000088                Default_Handler
+ *fill*         0x0800008a        0x2 
+ .text.Reset_Handler
+                0x0800008c       0x3c startup.o
+                0x0800008c                Reset_Handler
+ *(.rodata*)
+ *(.init)
+ *(.fini)
+
+.glue_7         0x080000c8        0x0
+ .glue_7        0x080000c8        0x0 linker stubs
+
+.glue_7t        0x080000c8        0x0
+ .glue_7t       0x080000c8        0x0 linker stubs
+
+.vfp11_veneer   0x080000c8        0x0
+ .vfp11_veneer  0x080000c8        0x0 linker stubs
+
+.v4_bx          0x080000c8        0x0
+ .v4_bx         0x080000c8        0x0 linker stubs
+
+.iplt           0x080000c8        0x0
+ .iplt          0x080000c8        0x0 startup.o
+
+.rel.dyn        0x080000c8        0x0
+ .rel.iplt      0x080000c8        0x0 startup.o
+
+.data           0x20000000        0x0 load address 0x080000c8
+                0x080000c8                        _sidata = LOADADDR (.data)
+                0x20000000                        _sdata = .
+ *(.data*)
+                0x20000000                        _edata = .
+
+.igot.plt       0x20000000        0x0
+ .igot.plt      0x20000000        0x0 startup.o
+
+.bss            0x20000000        0x0
+                0x20000000                        _sbss = .
+ *(.bss*)
+ *(COMMON)
+                0x20000000                        _ebss = .
+
+/DISCARD/
+ *(.eh_frame)
+OUTPUT(firmware.elf elf32-littlearm)
+LOAD linker stubs
+
+.comment        0x00000000       0x46
+ .comment       0x00000000       0x46 main.o
+                                 0x47 (size before relaxing)
+ .comment       0x00000046       0x47 startup.o
+
+.ARM.attributes
+                0x00000000       0x2c
+ .ARM.attributes
+                0x00000000       0x2c main.o
+ .ARM.attributes
+                0x0000002c       0x2c startup.o

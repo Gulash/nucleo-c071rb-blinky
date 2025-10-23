@@ -1,4 +1,4 @@
-name: Build Firmware
+name: Build Firmware (CI)
 
 on:
   push:
@@ -12,77 +12,27 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install ARM toolchain
+      - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
+          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi make
 
-      - name: Build firmware
+      - name: Show toolchain version
+        run: arm-none-eabi-gcc --version
+
+      - name: Build (same as local)
         run: |
-          set -euxo pipefail
+          chmod +x build.sh || true
+          ./build.sh
 
-          echo "Building for NUCLEO-C071RB..."
+      - name: List artifacts
+        run: ls -la firmware.* || true
 
-          # Quick sanity check for required files
-          if [ ! -f STM32C071RBTx.ld ]; then
-            echo "ERROR: linker script STM32C071RBTx.ld not found in repo root"
-            ls -la
-            exit 1
-          fi
-          if [ ! -f main.c ]; then
-            echo "ERROR: main.c not found in repo root"
-            ls -la
-            exit 1
-          fi
-          if [ ! -f startup.c ]; then
-            echo "ERROR: startup.c not found in repo root"
-            ls -la
-            exit 1
-          fi
-
-          # Compile
-          arm-none-eabi-gcc -c -mcpu=cortex-m0plus -mthumb -O2 -g main.c -o main.o
-          arm-none-eabi-gcc -c -mcpu=cortex-m0plus -mthumb -O2 -g startup.c -o startup.o
-
-          # Link (will fail with clear output if something's wrong)
-          arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb \
-            -T STM32C071RBTx.ld \
-            -nostdlib \
-            -Wl,--gc-sections \
-            -Wl,-Map=firmware.map \
-            main.o startup.o \
-            -o firmware.elf
-
-          # Create binary & hex
-          arm-none-eabi-objcopy -O binary firmware.elf firmware.bin
-          arm-none-eabi-objcopy -O ihex firmware.elf firmware.hex
-
-          # Show size and workspace for debugging
-          arm-none-eabi-size firmware.elf || true
-          echo "Workspace root: $GITHUB_WORKSPACE"
-          pwd
-          echo "Top-level files:"
-          ls -la
-          echo "Recursive file list:"
-          ls -R
-
-      - name: Verify artifacts exist (fail fast)
-        run: |
-          set -eu
-          for f in firmware.bin firmware.hex firmware.elf firmware.map; do
-            if [ ! -f "$f" ]; then
-              echo "ERROR: expected artifact '$f' not found in $(pwd)"
-              exit 1
-            fi
-          done
-          echo "All artifacts present."
-
-      - name: Upload firmware
+      - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware

@@ -1,71 +1,49 @@
-/**
- * Linker script for STM32C071RB
- * Memory: 32KB Flash, 12KB RAM
- */
-
-/* Entry point */
+/* Minimal linker script for STM32C071x8 / NUCLEO-C071RB
+   FLASH: 0x08000000 (128 KB)
+   SRAM : 0x20000000 (24  KB)
+*/
 ENTRY(Reset_Handler)
 
-/* Memory regions */
 MEMORY
 {
-    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 32K
-    RAM (rwx)   : ORIGIN = 0x20000000, LENGTH = 12K
+  FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 0x20000  /* 128K */
+  RAM   (rwx): ORIGIN = 0x20000000, LENGTH = 0x6000   /* 24K  */
 }
 
-/* Sections */
+_estack = ORIGIN(RAM) + LENGTH(RAM);
+
 SECTIONS
 {
-    /* Vector table goes first in Flash */
-    .isr_vector :
-    {
-        . = ALIGN(4);
-        KEEP(*(.isr_vector))
-        . = ALIGN(4);
-    } >FLASH
-    
-    /* Program code and constants */
-    .text :
-    {
-        . = ALIGN(4);
-        *(.text)
-        *(.text*)
-        *(.rodata)
-        *(.rodata*)
-        . = ALIGN(4);
-        _etext = .;
-    } >FLASH
-    
-    /* Initialized data */
+  .isr_vector :
+  {
+    KEEP(*(.isr_vector))
+  } > FLASH
+
+  .text :
+  {
+    *(.text*)
+    *(.rodata*)
+    *(.glue_7)
+    *(.glue_7t)
+    KEEP(*(.init))
+    KEEP(*(.fini))
+  } > FLASH
+
+  .data : AT(ADDR(.text) + SIZEOF(.text))
+  {
     _sidata = LOADADDR(.data);
-    .data :
-    {
-        . = ALIGN(4);
-        _sdata = .;
-        *(.data)
-        *(.data*)
-        . = ALIGN(4);
-        _edata = .;
-    } >RAM AT>FLASH
-    
-    /* Uninitialized data */
-    .bss :
-    {
-        . = ALIGN(4);
-        _sbss = .;
-        *(.bss)
-        *(.bss*)
-        *(COMMON)
-        . = ALIGN(4);
-        _ebss = .;
-    } >RAM
-    
-    /* Stack (grows down from top of RAM) */
-    .stack :
-    {
-        . = ALIGN(8);
-        . = . + 0x400; /* 1KB stack */
-        . = ALIGN(8);
-        _estack = .;
-    } >RAM
+    _sdata = .;
+    *(.data*)
+    _edata = .;
+  } > RAM
+
+  .bss :
+  {
+    _sbss = .;
+    *(.bss*)
+    *(COMMON)
+    _ebss = .;
+  } > RAM
+
+  /DISCARD/ : { *(.eh_frame) }
 }

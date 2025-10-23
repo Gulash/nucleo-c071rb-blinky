@@ -1,47 +1,44 @@
-/**
- * Simple Blinky for NUCLEO-C071RB
- * LED: PA5 (LD4 on Nucleo board)
- */
-
 #include <stdint.h>
 
-/* Register Addresses for STM32C071 */
-#define RCC_BASE        0x40021000
-#define GPIOA_BASE      0x50000000
+/* === CONFIGURE THIS FOR YOUR BOARD ===
+   Default below assumes NUCLEO-C071RB user LED on PC9.
+   If your board uses PA5 (common on many Nucleo-64), change accordingly.
+   ODR offset is 0x14 for STM32 GPIO; GPIO block base commonly in 0x4800_0000 range.
+*/
 
-/* Register Offsets */
-#define RCC_IOPENR      (*(volatile uint32_t *)(RCC_BASE + 0x34))
-#define GPIOA_MODER     (*(volatile uint32_t *)(GPIOA_BASE + 0x00))
-#define GPIOA_ODR       (*(volatile uint32_t *)(GPIOA_BASE + 0x14))
+#define GPIO_BASE_PLIN      0x48000000U  /* base for GPIOA; adjust if needed */
+#define GPIO_PORT_OFFSET    0x400U       /* port stride: A +0x000, B +0x400, C +0x800 ... */
+#define GPIO_ODR_OFFSET     0x14U
 
-/* Bit Definitions */
-#define RCC_IOPENR_GPIOAEN  (1 << 0)  // Enable GPIOA clock
+/* Choose the port index: 0=A, 1=B, 2=C, ... */
+#define LED_PORT_INDEX      2U   /* 2 => GPIOC */
+#define LED_PIN             9U   /* pin number (0..15) */
 
-/* Simple delay */
-void delay(volatile uint32_t count) {
-    while(count--) {
-        __asm__("nop");
+/* compute ODR address for chosen port */
+#define GPIOx_BASE(port_index) (GPIO_BASE_PLIN + ((port_index) * GPIO_PORT_OFFSET))
+#define GPIOx_ODR_ADDR(port_index) (GPIOx_BASE(port_index) + GPIO_ODR_OFFSET)
+
+volatile uint32_t * const LED_ODR = (volatile uint32_t *)GPIOx_ODR_ADDR(LED_PORT_INDEX);
+
+static void delay(volatile uint32_t n) {
+    while (n--) {
+        __asm__ volatile("nop");
     }
 }
 
 int main(void) {
-    /* Enable GPIOA clock */
-    RCC_IOPENR |= RCC_IOPENR_GPIOAEN;
-    
-    /* Configure PA5 as output (LED) */
-    /* Clear mode bits for PA5 (bits 10-11) */
-    GPIOA_MODER &= ~(3U << 10);
-    /* Set PA5 as general purpose output (01) */
-    GPIOA_MODER |= (1U << 10);
-    
-    /* Blink forever */
-    while(1) {
-        /* Toggle PA5 */
-        GPIOA_ODR ^= (1 << 5);
-        
-        /* Delay ~500ms at default clock */
-        delay(400000);
+    /* NOTE: Many STM32 MCUs require enabling the GPIO port clock in RCC before toggling.
+       If LED doesn't react, you must enable the corresponding RCC AHBENR bit for the port.
+       For example (pseudocode):
+         RCC->AHBENR |= (1 << (LED_PORT_INDEX + X));
+       The exact RCC register & bit depend on MCU family; check reference manual.
+    */
+
+    while (1) {
+        /* toggle pin by XORing the ODR bit (this is simple but non-atomic) */
+        *LED_ODR ^= (1U << LED_PIN);
+        delay(300000);
     }
-    
+
     return 0;
 }
